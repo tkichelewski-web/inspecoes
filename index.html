@@ -504,8 +504,8 @@ body.em-tour{overflow:auto}
         const aberto = !!state.cargosAbertos[c.cargo];
         const maxP = Math.max(...c.pessoas.map(p => p.n));
         return `<details class="cargo" data-cargo="${esc(c.cargo)}"${aberto ? ' open' : ''}>
-          <summary><span class="cargo-nome">${esc(c.cargo)}</span><span class="cargo-info">${c.pessoas.length} pessoa(s)${c.atencao ? ` · <b class="alerta">${c.atencao} em atenção ou alto</b>` : ''}</span>${indicadores(c, maxC)}</summary>
-          <div class="pessoas">${c.pessoas.sort((a, b) => b.n - a.n).map(l => `<div class="pessoa"><div class="pessoa-nome"><b>${esc(l.nome)}</b> <span class="pill ${NIVEL[l.nivel]}">${l.nivel}</span><br><small class="muted">${esc(l.ger)}</small></div>${indicadores(l, maxP)}</div>`).join('')}</div>
+          <summary><span class="cargo-nome">${esc(c.cargo)}</span><span class="cargo-info">${c.pessoas.length} pessoa(s)</span>${indicadores(c, maxC)}</summary>
+          <div class="pessoas">${c.pessoas.sort((a, b) => b.n - a.n).map(l => `<div class="pessoa"><div class="pessoa-nome"><b>${esc(l.nome)}</b><br><small class="muted">${esc(l.ger)}</small></div>${indicadores(l, maxP)}</div>`).join('')}</div>
         </details>`;
       }).join('')}</div></div>`;
   }
