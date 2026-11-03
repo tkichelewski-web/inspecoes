@@ -175,7 +175,7 @@ body.em-tour{overflow:auto}
 .leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 .cargos{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .cargo{border:1px solid var(--borda);border-radius:8px;background:#fff}
-.cargo summary{display:grid;grid-template-columns:minmax(180px,1.1fr) minmax(160px,1fr) minmax(320px,1.6fr);grid-template-areas:"nome pilha sinais" "info pilha sinais";gap:4px 18px;align-items:center;padding:14px 16px;cursor:pointer;list-style:none}
+.cargo summary{display:grid;grid-template-columns:minmax(220px,1fr) minmax(520px,2.4fr);grid-template-areas:"nome sinais" "info sinais";gap:4px 18px;align-items:center;padding:14px 16px;cursor:pointer;list-style:none}
 .cargo summary::-webkit-details-marker{display:none}
 .cargo summary:hover{background:#F6FAF2}
 .cargo[open] summary{border-bottom:1px solid var(--borda);background:#F6FAF2}
@@ -186,17 +186,20 @@ body.em-tour{overflow:auto}
 .pilha{grid-area:pilha;display:flex;height:22px;border-radius:5px;overflow:hidden;background:#EEF1EC}
 .pilha div{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;min-width:3px}
 .cargo summary .sinais{grid-area:sinais}
-.sinais{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
-.sinal{display:grid;grid-template-columns:112px 1fr 48px;gap:8px;align-items:center;font-size:11px;color:var(--texto)}
+.sinais{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:6px 18px}
+.sinal{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:11px;color:var(--texto)}
 .sinal-bar{position:relative;height:8px;border-radius:4px;background:#E4EBE1}
 .sinal-bar div{height:100%;border-radius:4px}
 .sinal-bar i{position:absolute;top:-3px;width:2px;height:14px;background:#263238;opacity:.55}
 .sinal-v{text-align:right;font-weight:700;color:var(--tinta)}
 .sinal-v.alerta{color:#B5301F}
+.sinal-bar.duplo{display:flex;overflow:hidden}.sinal-bar.duplo div{border-radius:0}
+.duplo-v{white-space:nowrap}.c-ok{color:#07583C}.c-nc{color:#B5301F}
+.sinal-rot{white-space:nowrap}
 .pessoas{display:flex;flex-direction:column}
-.pessoa{display:grid;grid-template-columns:minmax(220px,1fr) minmax(320px,1.6fr);gap:18px;align-items:center;padding:12px 16px 12px 32px;border-bottom:1px solid #EEF1EC}
+.pessoa{display:grid;grid-template-columns:minmax(220px,1fr) minmax(520px,2.4fr);gap:18px;align-items:center;padding:12px 16px 12px 32px;border-bottom:1px solid #EEF1EC}
 .pessoa:last-child{border-bottom:0}
-@media (max-width:900px){.cargo summary{grid-template-columns:1fr;grid-template-areas:"nome" "info" "pilha" "sinais"}.pessoa{grid-template-columns:1fr;padding-left:16px}.sinais{grid-template-columns:1fr}}
+@media (max-width:1100px){.cargo summary{grid-template-columns:1fr;grid-template-areas:"nome" "info" "sinais"}.pessoa{grid-template-columns:1fr;padding-left:16px}.sinais{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -481,39 +484,28 @@ body.em-tour{overflow:auto}
       ${!l.length ? '<p class="sub" style="padding:22px">Nenhuma NC para os filtros selecionados.</p>' : ''}</div>`;
   }
 
-  const COR_NIVEL = { 'Alto': '#DF4636', 'Atenção': '#FDB952', 'Normal': '#348964', 'Poucas inspeções': '#C9CFC6' };
-  const NIVEIS = ['Alto', 'Atenção', 'Normal', 'Poucas inspeções'];
-  function porCargo(ls) {
-    const g = {};
-    ls.forEach(l => {
-      const x = g[l.cargo] = g[l.cargo] || { cargo: l.cargo, pessoas: [], n: 0, sem: 0, aval: 0, semEv: 0, rap: 0, temT: 0, lote: 0, niv: { 'Alto': 0, 'Atenção': 0, 'Normal': 0, 'Poucas inspeções': 0 } };
-      x.pessoas.push(l); x.n += l.n; x.sem += l.sem; x.aval += l.aval; x.semEv += l.semEv; x.rap += l.rap; x.temT += l.temT; x.lote += l.lote; x.niv[l.nivel]++;
-    });
-    return Object.values(g).map(x => Object.assign(x, {
-      p100: x.aval ? x.sem / x.aval * 100 : null, pev: x.n ? x.semEv / x.n * 100 : null,
-      prap: x.temT ? x.rap / x.temT * 100 : null, plote: x.n ? x.lote / x.n * 100 : null,
-      atencao: x.niv['Alto'] + x.niv['Atenção']
-    })).sort((a, b) => b.atencao - a.atencao || b.niv['Alto'] - a.niv['Alto'] || b.n - a.n);
-  }
-  const SINAIS = [['p100', '% sem NC', 90], ['pev', '% sem evidência', 90], ['prap', '% rápidas', 50], ['plote', '% em lote', 70]];
-  function miniBarras(o) {
-    return `<div class="sinais">${SINAIS.map(([k, rot, lim]) => {
-      const v = o[k], alerta = v != null && v >= lim;
-      return `<div class="sinal"><span class="sinal-rot">${rot}</span><div class="sinal-bar"><div style="width:${W(v)};background:${alerta ? '#DF4636' : '#348964'}"></div><i style="left:${lim}%" title="Limite do sinal: ${lim}%"></i></div><span class="sinal-v${alerta ? ' alerta' : ''}">${pct(v)}</span></div>`;
-    }).join('')}</div>`;
+  function indicadores(o, maxN) {
+    const conf = o.c + o.nc ? o.c / (o.c + o.nc) * 100 : null, ncp = conf == null ? null : 100 - conf;
+    const semAlerta = o.p100 != null && o.p100 >= 90;
+    return `<div class="sinais">
+      <div class="sinal"><span class="sinal-rot">% sem NC</span><div class="sinal-bar"><div style="width:${W(o.p100)};background:${semAlerta ? '#DF4636' : '#348964'}"></div><i style="left:90%" title="Acima de 90% das inspeções sem nenhuma NC é um sinal de atenção"></i></div><span class="sinal-v${semAlerta ? ' alerta' : ''}">${pct(o.p100)}</span></div>
+      <div class="sinal"><span class="sinal-rot">Inspeções</span><div class="sinal-bar"><div style="width:${W(o.n / Math.max(1, maxN) * 100)};background:#07583C"></div></div><span class="sinal-v">${num(o.n)}</span></div>
+      <div class="sinal sinal-larga"><span class="sinal-rot">Conformidade</span><div class="sinal-bar duplo"><div style="width:${W(conf)};background:#348964"></div><div style="width:${W(ncp)};background:#DF4636"></div></div><span class="sinal-v duplo-v"><span class="c-ok">${pct(conf)}</span> · <span class="c-nc">${pct(ncp)} NC</span></span></div>
+    </div>`;
   }
   function blocoCargos(ls) {
-    const cs = porCargo(ls);
+    const g = {};
+    ls.forEach(l => { const x = g[l.cargo] = g[l.cargo] || { cargo: l.cargo, pessoas: [], n: 0, c: 0, nc: 0, sem: 0, aval: 0, atencao: 0 }; x.pessoas.push(l); x.n += l.n; x.c += l.c; x.nc += l.nc; x.sem += l.sem; x.aval += l.aval; if (l.nivel === 'Alto' || l.nivel === 'Atenção') x.atencao++; });
+    const cs = Object.values(g).map(x => Object.assign(x, { p100: x.aval ? x.sem / x.aval * 100 : null })).sort((a, b) => b.n - a.n);
     if (!cs.length) return '';
-    return `<div class="card"><h2 class="sec">Qualidade por cargo</h2><p class="sub">Barra colorida = quantas pessoas do cargo estão em cada nível · as barras menores mostram os 4 sinais (traço = limite do sinal, vermelho = acima do limite). Clique num cargo para ver as pessoas.</p>
-      <div class="leg">${NIVEIS.map(n => `<span><i style="background:${COR_NIVEL[n]}"></i>${n}</span>`).join('')}</div>
+    const maxC = Math.max(...cs.map(c => c.n));
+    return `<div class="card"><h2 class="sec">Qualidade por cargo</h2><p class="sub">% sem NC = inspeções em que nada foi apontado (traço = 90%, acima disso a barra fica vermelha) · Inspeções = quantidade feita · Conformidade = itens conformes (verde) e não conformes (vermelho). Clique num cargo para ver as pessoas.</p>
       <div class="cargos">${cs.map(c => {
-        const tot = c.pessoas.length;
-        const pilha = NIVEIS.filter(n => c.niv[n]).map(n => `<div style="width:${c.niv[n] / tot * 100}%;background:${COR_NIVEL[n]}" title="${n}: ${c.niv[n]} pessoa(s)">${c.niv[n] / tot >= 0.12 ? c.niv[n] : ''}</div>`).join('');
         const aberto = !!state.cargosAbertos[c.cargo];
+        const maxP = Math.max(...c.pessoas.map(p => p.n));
         return `<details class="cargo" data-cargo="${esc(c.cargo)}"${aberto ? ' open' : ''}>
-          <summary><span class="cargo-nome">${esc(c.cargo)}</span><span class="cargo-info">${tot} pessoa(s) · ${num(c.n)} inspeções${c.atencao ? ` · <b class="alerta">${c.atencao} em atenção ou alto</b>` : ''}</span><div class="pilha">${pilha}</div>${miniBarras(c)}</summary>
-          <div class="pessoas">${c.pessoas.sort((a, b) => (b.sinais || -1) - (a.sinais || -1) || b.n - a.n).map(l => `<div class="pessoa"><div class="pessoa-nome"><b>${esc(l.nome)}</b> <span class="pill ${NIVEL[l.nivel]}">${l.nivel}</span><br><small class="muted">${esc(l.ger)} · ${num(l.n)} inspeções</small></div>${miniBarras(l)}</div>`).join('')}</div>
+          <summary><span class="cargo-nome">${esc(c.cargo)}</span><span class="cargo-info">${c.pessoas.length} pessoa(s)${c.atencao ? ` · <b class="alerta">${c.atencao} em atenção ou alto</b>` : ''}</span>${indicadores(c, maxC)}</summary>
+          <div class="pessoas">${c.pessoas.sort((a, b) => b.n - a.n).map(l => `<div class="pessoa"><div class="pessoa-nome"><b>${esc(l.nome)}</b> <span class="pill ${NIVEL[l.nivel]}">${l.nivel}</span><br><small class="muted">${esc(l.ger)}</small></div>${indicadores(l, maxP)}</div>`).join('')}</div>
         </details>`;
       }).join('')}</div></div>`;
   }
