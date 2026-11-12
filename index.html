@@ -599,7 +599,7 @@ body.em-tour{overflow:auto}
     const tend = ms.length >= 2 ? { de: MESC[parseInt(ms[ms.length - 2].nome.slice(5), 10) - 1], para: MESC[parseInt(ms[ms.length - 1].nome.slice(5), 10) - 1], a: ms[ms.length - 2].pnc, b: ms[ms.length - 1].pnc } : null;
     const hoje = new Date();
     return {
-      vazio: !es.length, escopo,
+      vazio: !es.length, escopo, periodo, grupo, escopoCapa: [escopo].concat(extras).join('  •  '),
       recorte, data: hoje.toLocaleDateString('pt-BR'),
       k: { n: k.n, itens: k.itens, na, nc: k.nc, comN: k.comN, semN: k.semN },
       grupoTitulo: porSup ? 'Por supervisão do local' : 'Por gerência do local' + (agrupar(es, 'ger').length > 10 ? ' (as 10 com mais inspeções)' : ''),
@@ -888,7 +888,13 @@ function montarApresentacao(PptxGenJS, D, IMG) {
   pres.title = D.titulo + ' – ' + D.recorte;
   pres.company = 'Usina Santa Adélia – SSMA';
   pres.theme = { headFontFace: F, bodyFontFace: F };
-  pres.defineSlideMaster({ title: 'CAPA', background: { color: VERDE }, objects: [{ image: { data: IMG.logoBranco, x: 0.7, y: 0.6, w: 1.9, h: 0.79 } }] });
+  pres.defineSlideMaster({
+    title: 'CAPA', background: { color: VERDE },
+    objects: [
+      { rect: { x: 0.65, y: 2.1, w: 0.1, h: 2.1, fill: { color: LIMA }, line: { color: LIMA } } },
+      { text: { text: 'SSMA — Usina Santa Adélia', options: { x: 0.65, y: 6.7, w: 6, h: 0.3, fontFace: F, fontSize: 11, color: 'E3EFE8', margin: 0 } } },
+    ],
+  });
   pres.defineSlideMaster({
     title: 'CONTEUDO', background: { color: 'FFFFFF' },
     objects: [
@@ -918,15 +924,12 @@ function montarApresentacao(PptxGenJS, D, IMG) {
     ], Object.assign({ x, y, w, h, barDir: 'bar', barGrouping: 'percentStacked', barGapWidthPct: 45, chartColors: [AMBAR, VERDE], showValue: true, dataLabelPosition: 'ctr', dataLabelColor: 'FFFFFF', dataLabelFormatCode: '#,##0;;;', showLegend: false, catAxisOrientation: 'maxMin' }, eixo));
   }
 
-  // 1. Capa
+  // 1. Capa (mesmo padrão do relatório do IP VIDAS)
   let s = pres.addSlide({ masterName: 'CAPA' });
-  s.addShape(pres.shapes.PARALLELOGRAM, { x: 0.7, y: 2.45, w: 3.4, h: 0.42, fill: { color: LIMA }, line: { color: LIMA } });
-  s.addText('INSPEÇÕES DE SEGURANÇA', { x: 0.7, y: 2.45, w: 3.4, h: 0.42, fontFace: F, fontSize: 12, bold: true, color: VERDE, align: 'center', valign: 'middle', charSpacing: 1, margin: 0, isTextBox: true });
-  s.addText('O QUE A LIDERANÇA ESTÁ ENCONTRANDO', { x: 0.7, y: 3.05, w: 9.5, h: 1.6, fontFace: F, fontSize: 40, bold: true, italic: true, color: 'FFFFFF', margin: 0, valign: 'top', isTextBox: true });
-  s.addText(D.recorte, { x: 0.7, y: 4.8, w: 9.5, h: 0.5, fontFace: F, fontSize: 18, color: LIMA, margin: 0, isTextBox: true });
-  s.addText('Gerado em ' + D.data + ' a partir do painel de Inspeções (WeCheck + Senior)', { x: 0.7, y: 6.55, w: 9.5, h: 0.35, fontFace: F, fontSize: 11, color: 'D6E9DD', margin: 0, isTextBox: true });
-  s.addShape(pres.shapes.OVAL, { x: 9.9, y: 2.4, w: 2.8, h: 2.8, fill: { color: VERDE2 }, line: { color: VERDE2 } });
-  s.addImage({ data: IMG.capacete, x: 10.4, y: 2.95, w: 1.8, h: 1.7, altText: 'Capacete de segurança' });
+  s.addText('INSPEÇÕES DE SEGURANÇA', { x: 1.0, y: 2.15, w: 11.5, h: 0.85, fontFace: F, fontSize: 40, bold: true, color: 'FFFFFF', margin: 0, valign: 'middle', isTextBox: true });
+  s.addText(D.periodo + '  •  ' + D.escopoCapa, { x: 1.0, y: 3.05, w: 11.5, h: 0.55, fontFace: F, fontSize: 22, color: LIMA, margin: 0, valign: 'middle', fit: 'shrink', isTextBox: true });
+  s.addText('O que a liderança está encontrando  •  ' + D.grupo + '  •  Fonte: WeCheck + Senior', { x: 1.0, y: 3.65, w: 11.5, h: 0.4, fontFace: F, fontSize: 14, color: 'E3EFE8', margin: 0, valign: 'middle', isTextBox: true });
+  s.addText('Gerado em ' + D.data, { x: 8.7, y: 6.7, w: 4.0, h: 0.3, fontFace: F, fontSize: 11, color: 'E3EFE8', align: 'right', margin: 0, isTextBox: true });
 
   // 2. A lacuna geral
   s = pres.addSlide({ masterName: 'CONTEUDO' });
