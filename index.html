@@ -201,6 +201,26 @@ body.em-tour{overflow:auto}
 .pessoa:last-child{border-bottom:0}
 @media (max-width:1100px){.cargo summary{grid-template-columns:1fr;grid-template-areas:"nome" "info" "sinais"}.pessoa{grid-template-columns:1fr;padding-left:16px}.sinais{grid-template-columns:1fr}}
 .kpi-de{font-size:17px;font-weight:700;color:var(--texto)}
+
+.cargo summary .mini{grid-area:sinais}
+.mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mini-k{background:#fff;border:1px solid var(--borda);border-radius:8px;padding:10px 14px;min-width:0}
+.mini-l{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--texto)}
+.mini-v{font-size:24px;font-weight:800;color:var(--tinta);line-height:1.15;font-variant-numeric:tabular-nums}
+.mini-v.alerta{color:#B5301F}
+.mini-v .kpi-de{font-size:14px}
+.mini-s{font-size:12px;color:var(--texto);line-height:1.35}
+.mini-s .alerta{color:#B5301F;font-weight:700}
+.pessoa .mini-k{background:#FAFCF8}
+@media (max-width:1100px){.mini{grid-template-columns:1fr}}
+
+.tq .tq-cargo td{background:#F3FAE9;cursor:pointer}
+.tq .tq-cargo:hover td{background:#E8F4D8}
+.tq .tq-pessoa td:first-child{padding-left:34px}
+.tq-seta{display:inline-block;width:14px;color:var(--verde)}
+.semnc{display:flex;height:10px;border-radius:5px;background:#E4EBE1;overflow:hidden;margin-top:4px}
+.semnc div{height:100%}
+.tq b.alerta,.tq small.alerta{color:#B5301F}
 </style>
 </head>
 <body>
@@ -487,30 +507,29 @@ body.em-tour{overflow:auto}
       ${!l.length ? '<p class="sub" style="padding:22px">Nenhuma NC para os filtros selecionados.</p>' : ''}</div>`;
   }
 
-  function indicadores(o, maxN) {
-    const conf = o.c + o.nc ? o.c / (o.c + o.nc) * 100 : null, ncp = conf == null ? null : 100 - conf;
-    const semAlerta = o.p100 != null && o.p100 >= 90;
-    return `<div class="sinais">
-      <div class="sinal"><span class="sinal-rot">% sem NC</span><div class="sinal-bar"><div style="width:${W(o.p100)};background:${semAlerta ? '#DF4636' : '#348964'}"></div><i style="left:90%" title="Acima de 90% das inspeções sem nenhuma NC é um sinal de atenção"></i></div><span class="sinal-v${semAlerta ? ' alerta' : ''}">${pct(o.p100)}</span></div>
-      <div class="sinal"><span class="sinal-rot">Inspeções</span><div class="sinal-bar"><div style="width:${W(o.n / Math.max(1, maxN) * 100)};background:#07583C"></div></div><span class="sinal-v">${num(o.n)}</span></div>
-      <div class="sinal sinal-larga"><span class="sinal-rot">Conformidade</span><div class="sinal-bar duplo"><div style="width:${W(conf)};background:#348964"></div><div style="width:${W(ncp)};background:#DF4636"></div></div><span class="sinal-v duplo-v"><span class="c-ok">${pct(conf)}</span> · <span class="c-nc">${pct(ncp)} NC</span></span></div>
-    </div>`;
+  function linhaQual(o) {
+    const itens = o.c + o.nc, com = o.aval - o.sem, semN = o.n - com;
+    const psem = o.n ? semN / o.n * 100 : null, pcom = o.n ? com / o.n * 100 : null;
+    const alerta = psem != null && psem >= 90;
+    return `<td class="num">${num(o.n)}</td>
+      <td class="num nw"><b${alerta ? ' class="alerta"' : ''}>${num(semN)} de ${num(o.n)}</b> <small${alerta ? ' class="alerta"' : ' class="muted"'}>(${pct(psem)})</small></td>
+      <td class="num nw"><b style="color:#07583C">${num(com)} de ${num(o.n)}</b> <small class="muted">(${pct(pcom)})</small></td>
+      <td class="num nw"><b style="color:#DF4636">${num(o.nc)}</b> <small class="muted">(${itens ? fmt(o.nc / itens * 100) + '%' : '—'} dos itens)</small></td>
+      <td><div class="semnc"><div style="width:${W(psem)};background:${alerta ? '#DF4636' : '#FDB952'}"></div><div style="width:${W(pcom)};background:#07583C"></div></div></td>`;
   }
   function blocoCargos(ls) {
     const g = {};
-    ls.forEach(l => { const x = g[l.cargo] = g[l.cargo] || { cargo: l.cargo, pessoas: [], n: 0, c: 0, nc: 0, sem: 0, aval: 0, atencao: 0 }; x.pessoas.push(l); x.n += l.n; x.c += l.c; x.nc += l.nc; x.sem += l.sem; x.aval += l.aval; if (l.nivel === 'Alto' || l.nivel === 'Atenção') x.atencao++; });
-    const cs = Object.values(g).map(x => Object.assign(x, { p100: x.aval ? x.sem / x.aval * 100 : null })).sort((a, b) => b.n - a.n);
+    ls.forEach(l => { const x = g[l.cargo] = g[l.cargo] || { cargo: l.cargo, pessoas: [], n: 0, c: 0, nc: 0, sem: 0, aval: 0 }; x.pessoas.push(l); x.n += l.n; x.c += l.c; x.nc += l.nc; x.sem += l.sem; x.aval += l.aval; });
+    const cs = Object.values(g).sort((a, b) => b.n - a.n);
     if (!cs.length) return '';
-    const maxC = Math.max(...cs.map(c => c.n));
-    return `<div class="card"><h2 class="sec">Qualidade por cargo</h2><p class="sub">% sem NC = inspeções em que nada foi apontado (traço = 90%, acima disso a barra fica vermelha) · Inspeções = quantidade feita · Conformidade = itens conformes (verde) e não conformes (vermelho). Clique num cargo para ver as pessoas.</p>
-      <div class="cargos">${cs.map(c => {
-        const aberto = !!state.cargosAbertos[c.cargo];
-        const maxP = Math.max(...c.pessoas.map(p => p.n));
-        return `<details class="cargo" data-cargo="${esc(c.cargo)}"${aberto ? ' open' : ''}>
-          <summary><span class="cargo-nome">${esc(c.cargo)}</span><span class="cargo-info">${c.pessoas.length} pessoa(s)</span>${indicadores(c, maxC)}</summary>
-          <div class="pessoas">${c.pessoas.sort((a, b) => b.n - a.n).map(l => `<div class="pessoa"><div class="pessoa-nome"><b>${esc(l.nome)}</b><br><small class="muted">${esc(l.ger)}</small></div>${indicadores(l, maxP)}</div>`).join('')}</div>
-        </details>`;
-      }).join('')}</div></div>`;
+    const corpo = cs.map(c => {
+      const aberto = !!state.cargosAbertos[c.cargo];
+      const pessoas = aberto ? c.pessoas.slice().sort((a, b) => b.n - a.n).map(l => `<tr class="tq-pessoa"><td><b>${esc(l.nome)}</b><br><small class="muted">${esc(l.ger)}</small></td>${linhaQual(l)}</tr>`).join('') : '';
+      return `<tr class="tq-cargo" data-cargo-toggle="${esc(c.cargo)}"><td><span class="tq-seta">${aberto ? '▾' : '▸'}</span> <b>${esc(c.cargo)}</b> <small class="muted">· ${c.pessoas.length} pessoa(s)</small></td>${linhaQual(c)}</tr>${pessoas}`;
+    }).join('');
+    return `<div class="card flush"><div class="cardhead"><h2 class="sec">Qualidade por cargo</h2><p class="sub">Das inspeções feitas, quantas não registraram nenhum desvio e quantas encontraram ao menos uma NC. As NC registradas se concentram nas inspeções com NC. Em vermelho: 90% ou mais das inspeções sem nenhuma NC (sinal de atenção). Clique num cargo para ver as pessoas.</p></div>
+      <div class="scroll"><table class="tbl tq" style="min-width:960px"><thead><tr><th>Cargo / pessoa</th><th class="num">Inspeções</th><th class="num">Sem nenhuma NC</th><th class="num">Com ao menos uma NC</th><th class="num">NC registradas</th><th style="width:16%"></th></tr></thead>
+      <tbody>${corpo}</tbody></table></div></div>`;
   }
   const NIVEL = { 'Alto': 'p-nc', 'Atenção': 'p-om', 'Normal': 'p-ok', 'Poucas inspeções': 'p-na' };
   const sinal = (v, lim) => v != null && v >= lim ? ' class="num alerta"' : ' class="num"';
@@ -585,11 +604,14 @@ body.em-tour{overflow:auto}
     const P = {};
     es.forEach(e => e.aud.forEach(a => {
       if (!audPassa(a) || !inc(state.origem, grupoAud(a))) return;
-      const x = P[a.n] = P[a.n] || { nome: a.n, n: 0, semN: 0, nc: 0, perg: {} };
-      x.n++; if (e.nc === 0) x.semN++; x.nc += e.nc;
+      const x = P[a.n] = P[a.n] || { nome: a.n, cargo: a.c || 'Não encontrado na ATIVOS', n: 0, semN: 0, nc: 0, itens: 0, perg: {} };
+      x.n++; if (e.nc === 0) x.semN++; x.nc += e.nc; x.itens += e.c + e.nc;
       e.dvs.forEach(d => { x.perg[d.p] = (x.perg[d.p] || 0) + 1; });
     }));
     const pessoas = Object.values(P).map(x => Object.assign(x, { tops: Object.entries(x.perg).sort((a, b) => b[1] - a[1]).slice(0, 2) }));
+    const CG = {};
+    pessoas.forEach(x => { const c = CG[x.cargo] = CG[x.cargo] || { cargo: x.cargo, pessoas: 0, n: 0, semN: 0, nc: 0, itens: 0 }; c.pessoas++; c.n += x.n; c.semN += x.semN; c.nc += x.nc; c.itens += x.itens; });
+    const cargos = Object.values(CG).sort((a, b) => b.n - a.n);
     const lac = pessoas.filter(x => x.n >= 4).sort((a, b) => b.semN / b.n - a.semN / a.n || b.n - a.n);
     // análise
     const pergs = perguntas(es);
@@ -604,7 +626,7 @@ body.em-tour{overflow:auto}
       k: { n: k.n, itens: k.itens, na, nc: k.nc, comN: k.comN, semN: k.semN },
       grupoTitulo: porSup ? 'Por supervisão do local' : 'Por gerência do local' + (agrupar(es, 'ger').length > 10 ? ' (as 10 com mais inspeções)' : ''),
       grupos,
-      pessoasLacuna: lac,
+      pessoasLacuna: lac, cargos, pessoasTab: pessoas.slice().sort((a, b) => b.n - a.n),
       pessoasNC: pessoas.filter(x => x.nc > 0).sort((a, b) => b.nc - a.nc),
       notaPessoas: lac.length > 14 ? 'Mostrando as 14 pessoas com maior % de inspeções sem NC, entre ' + lac.length + ' com 4 ou mais inspeções. A lista completa está no painel e no Excel.' : 'Pessoas com 4 ou mais inspeções no recorte.',
       analise: { checkTop: ck ? { nome: ck.nome, nc: ck.nc } : null, sist: pergs.filter(q => q.sist).length, localTop: lc ? { nome: lc.nome, nc: lc.nc, n: lc.n } : null, tend },
@@ -638,7 +660,7 @@ body.em-tour{overflow:auto}
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.aberto) { const c = state.aberto; fechar(); const b = document.querySelector('.dd[data-campo="' + c + '"] .dd-btn'); if (b) b.focus(); } });
   document.addEventListener('click', e => {
     const dd = e.target.closest('.dd'); if (!dd) fechar();
-    const t = e.target.closest('button'); if (!t) return;
+    const t = e.target.closest('button, tr[data-cargo-toggle]'); if (!t) return;
     if (dd) {
       const c = dd.dataset.campo;
       if (t.classList.contains('dd-btn')) { const abrir = state.aberto !== c; fechar(); if (abrir) { state.aberto = c; dd.querySelector('.dd-pan').hidden = false; t.setAttribute('aria-expanded', 'true'); const f = dd.querySelector('.dd-busca') || dd.querySelector('.dd-op:not([hidden]) input'); if (f) f.focus(); } return; }
@@ -646,6 +668,7 @@ body.em-tour{overflow:auto}
       if (t.dataset.dd === 'todos') { const v = Array.from(dd.querySelectorAll('.dd-op:not([hidden]) input')).map(i => i.value); state[c] = Array.from(new Set(state[c].concat(v))); state.limite = 100; render(); return; }
       return;
     }
+    if (t.dataset.cargoToggle !== undefined) { state.cargosAbertos[t.dataset.cargoToggle] = !state.cargosAbertos[t.dataset.cargoToggle]; render(); return; }
     if (t.dataset.base) { state.baseQual = t.dataset.base; render(); return; }
     if (t.dataset.tab) { state.tab = t.dataset.tab; render(); window.scrollTo(0, 0); return; }
     if (t.dataset.tira) { alternar(t.dataset.tira, t.dataset.valor, false); return; }
@@ -692,7 +715,7 @@ body.em-tour{overflow:auto}
     { alvo: '#tela', tab: 'desv', titulo: 'Desvios', texto: 'Cada não conformidade registrada, com pergunta, comentário, foto, local e quem inspecionou. Use a busca para achar um local, uma pessoa ou um assunto.' },
     { alvo: '#tela', tab: 'qual', titulo: 'Qualidade das respostas', texto: 'Mostra se as inspeções estão sendo feitas com atenção ou só para cumprir meta. Nesta tela, Diretoria e Gerência se referem a quem inspecionou. Os sinais em vermelho e o nível (Alto, Atenção, Normal) indicam onde vale conversar com o líder. Nenhum sinal sozinho prova nada: o que importa é a combinação.' },
     { alvo: '#tela', tab: 'loc', titulo: 'Locais', texto: 'Onde as inspeções aconteceram e como cada uma foi ligada a um local físico. As que ficaram “só com a unidade” mostram o que foi escrito no WeCheck, para ajustar o de-para.' },
-    { alvo: '#gerarPptx', titulo: 'Gerar apresentação', texto: 'Monta na hora um PowerPoint de 5 slides com os filtros aplicados: resultado, análise, quem está inspecionando sem registrar NC e o que cada líder está identificando. Os gráficos são editáveis.' },
+    { alvo: '#gerarPptx', titulo: 'Gerar apresentação', texto: 'Monta na hora um PowerPoint com os filtros aplicados: resultado, análise, inspeções por cargo e por pessoa e o que cada líder está identificando. Os gráficos são editáveis.' },
     { alvo: '#exportar', titulo: 'Exportar para Excel', texto: 'Baixa uma planilha com as inspeções, os desvios e a qualidade por pessoa, já com os filtros aplicados.' },
     { alvo: '#tourBtn', titulo: 'Pronto!', texto: 'Para rever este tour quando quiser, clique em “Tour guiado” no menu.', antes: () => { if (app.classList.contains('recolhido')) aplicarMenu(false); } },
   ];
@@ -957,7 +980,7 @@ function montarApresentacao(PptxGenJS, D, IMG) {
   const A = D.analise, pc = (a, b) => b ? Math.round(a / b * 100) : 0;
   const fx = v => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
   const insights = [];
-  insights.push([p(k.n ? k.semN / k.n * 100 : 0) + ' das inspeções sem nenhuma NC', n(k.semN) + ' de ' + n(k.n) + ' inspeções. Pode ser área em ordem ou inspeção feita sem atenção: veja os nomes no próximo slide.']);
+  insights.push([p(k.n ? k.semN / k.n * 100 : 0) + ' das inspeções sem nenhuma NC', n(k.semN) + ' de ' + n(k.n) + ' inspeções. Pode ser área em ordem ou inspeção feita sem atenção: veja os nomes nos slides por cargo e por pessoa.']);
   if (A.checkTop && k.nc) insights.push([pc(A.checkTop.nc, k.nc) + '% das NC estão num só checklist', A.checkTop.nome + ': ' + n(A.checkTop.nc) + ' das ' + n(k.nc) + ' NC registradas no período.']);
   insights.push(A.sist ? [n(A.sist) + ' pergunta' + (A.sist > 1 ? 's' : '') + ' com NC repetida', 'O mesmo problema apareceu em 2 ou mais inspeções: pede ação de processo, não só correção no local.'] : ['Nenhuma NC repetida', 'Nenhuma pergunta teve NC em mais de uma inspeção no recorte: os casos podem ser tratados como ver e agir.']);
   if (A.localTop) insights.push(['Local com mais NC', A.localTop.nome + ': ' + n(A.localTop.nc) + ' NC em ' + n(A.localTop.n) + ' inspeções.']);
@@ -976,20 +999,41 @@ function montarApresentacao(PptxGenJS, D, IMG) {
   else s.addChart(pres.charts.BAR, [{ name: 'Inspeções com NC', labels: pt.map(q => corta(q.p, 52)), values: pt.map(q => q.nInsp) }],
     Object.assign({ x: 6.7, y: 2.4, w: 5.9, h: 4.15, barDir: 'bar', barGapWidthPct: 40, chartColors: ['DF4636'], showValue: true, dataLabelPosition: 'outEnd', dataLabelColor: TINTA, showLegend: false, catAxisOrientation: 'maxMin', catAxisLabelFontSize: 10 }, eixo));
 
-  // 3. Lacuna por pessoa
-  s = pres.addSlide({ masterName: 'CONTEUDO' });
-  cabecalho(s, 'Por líder', 'Quem está inspecionando sem registrar NC');
-  const lista = D.pessoasLacuna.slice(0, 14);
-  if (lista.length) barrasLacuna(s, lista.map(l => Object.assign({ rotulo: l.nome + '  (' + n(l.semN) + ' de ' + n(l.n) + ')' }, l)), 0.5, 1.75, 8.9, 4.75);
-  else s.addText('Nenhuma pessoa com 4 ou mais inspeções no recorte.', { x: 0.6, y: 2.2, w: 8.5, h: 0.6, fontFace: F, fontSize: 14, color: TEXTO, margin: 0, isTextBox: true });
-  legendaManual(s, 0.7, 6.45);
-  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 9.7, y: 1.9, w: 3.0, h: 4.75, rectRadius: 0.12, fill: { color: CLARO }, line: { color: CLARO } });
-  s.addText([
-    { text: 'Como ler', options: { bold: true, color: VERDE, fontSize: 14, breakLine: true } },
-    { text: 'Cada barra é uma pessoa. Quanto mais laranja, mais inspeções ela fez sem apontar nenhuma NC.', options: { fontSize: 12, color: TINTA, breakLine: true } },
-    { text: 'Barra toda laranja: todas as inspeções sem desvio. Vale conversar com o líder e acompanhar uma inspeção junto.', options: { fontSize: 12, color: TINTA, breakLine: true } },
-    { text: D.notaPessoas, options: { fontSize: 10, italic: true, color: TEXTO } },
-  ], { x: 9.95, y: 2.1, w: 2.55, h: 4.35, fontFace: F, valign: 'top', paraSpaceAfter: 10, margin: 0, isTextBox: true });
+  // Tabelas por cargo e por pessoa (mesma leitura da tela Qualidade das respostas)
+  function tabelaQual(s, linhas, primeira, colW, y, rowH) {
+    const H = t => ({ text: t, options: { bold: true, color: 'FFFFFF', fill: { color: VERDE }, fontSize: 11, valign: 'middle' } });
+    const rows = [[H(primeira), H('Inspeções'), H('Sem nenhuma NC'), H('Com ao menos uma NC'), H('NC registradas')]].concat(linhas.map((x, i) => {
+      const com = x.n - x.semN, ps = x.n ? x.semN / x.n * 100 : 0, alerta = ps >= 90;
+      const f = { fontSize: 11, color: TINTA, fill: { color: i % 2 ? 'F6FAF2' : 'FFFFFF' }, valign: 'middle' };
+      return [
+        { text: x.rotulo, options: Object.assign({}, f, { bold: true }) },
+        { text: n(x.n), options: Object.assign({}, f, { align: 'right' }) },
+        { text: [{ text: n(x.semN) + ' de ' + n(x.n), options: { bold: true, color: alerta ? 'B5301F' : TINTA } }, { text: '  (' + p(ps) + ')', options: { color: alerta ? 'B5301F' : TEXTO } }], options: Object.assign({}, f, { align: 'right' }) },
+        { text: [{ text: n(com) + ' de ' + n(x.n), options: { bold: true, color: VERDE } }, { text: '  (' + p(100 - ps) + ')', options: { color: TEXTO } }], options: Object.assign({}, f, { align: 'right' }) },
+        { text: [{ text: n(x.nc), options: { bold: true, color: 'B5301F' } }, { text: '  (' + (x.itens ? (Math.round(x.nc / x.itens * 1000) / 10).toFixed(1).replace('.', ',') : '0,0') + '% dos itens)', options: { color: TEXTO } }], options: Object.assign({}, f, { align: 'right' }) },
+      ];
+    }));
+    s.addTable(rows, { x: 0.6, y, w: 12.1, colW, fontFace: F, rowH, border: { type: 'solid', color: 'E6ECE3', pt: 0.5 }, margin: 0.06 });
+  }
+  const notaQual = 'Sem nenhuma NC + Com ao menos uma NC = total de inspeções. As NC registradas se concentram nas inspeções com NC. Em vermelho: 90% ou mais das inspeções sem nenhuma NC.';
+
+  // Por cargo
+  if (D.cargos && D.cargos.length) {
+    s = pres.addSlide({ masterName: 'CONTEUDO' });
+    cabecalho(s, 'Por cargo', 'Inspeções por cargo');
+    const lc = D.cargos.slice(0, 10);
+    tabelaQual(s, lc.map(c => Object.assign({ rotulo: c.cargo + '  (' + c.pessoas + ' pessoa' + (c.pessoas > 1 ? 's' : '') + ')' }, c)), 'Cargo', [3.9, 1.2, 2.3, 2.3, 2.4], 1.45, 0.4);
+    s.addText(notaQual + (D.cargos.length > 10 ? ' Mostrando os 10 cargos com mais inspeções; a lista completa está no painel.' : ''), { x: 0.6, y: 6.35, w: 12.1, h: 0.45, fontFace: F, fontSize: 10, italic: true, color: TEXTO, margin: 0, valign: 'top', isTextBox: true });
+  }
+
+  // Por pessoa
+  if (D.pessoasTab && D.pessoasTab.length) {
+    s = pres.addSlide({ masterName: 'CONTEUDO' });
+    cabecalho(s, 'Por nome', 'Inspeções por pessoa');
+    const lp = D.pessoasTab.slice(0, 10);
+    tabelaQual(s, lp.map(x => Object.assign({ rotulo: x.nome }, x)), 'Nome', [3.9, 1.2, 2.3, 2.3, 2.4], 1.45, 0.4);
+    s.addText(notaQual + (D.pessoasTab.length > 10 ? ' Mostrando as 10 pessoas com mais inspeções, entre ' + D.pessoasTab.length + '; a lista completa está no painel e no Excel.' : ''), { x: 0.6, y: 6.35, w: 12.1, h: 0.45, fontFace: F, fontSize: 10, italic: true, color: TEXTO, margin: 0, valign: 'top', isTextBox: true });
+  }
 
   // 4. O que estão identificando
   s = pres.addSlide({ masterName: 'CONTEUDO' });
