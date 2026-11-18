@@ -581,7 +581,14 @@ body.em-tour{overflow:auto}
   }
 
   // ---------- dados para a apresentação (PowerPoint)
+  // Na apresentação, Diretoria e Gerência valem para QUEM INSPECIONOU (a liderança daquela área),
+  // e não para o local inspecionado: só entram as inspeções e as pessoas da diretoria/gerência filtrada.
   function dadosApresentacao() {
+    const tab = state.tab, base = state.baseQual;
+    state.tab = 'qual'; state.baseQual = 'pessoa';
+    try { return dadosApresentacaoPessoa(); } finally { state.tab = tab; state.baseQual = base; }
+  }
+  function dadosApresentacaoPessoa() {
     const es = filtrados();
     const k = resumo(es);
     let na = 0; es.forEach(e => { na += e.na || 0; });
@@ -596,7 +603,7 @@ body.em-tour{overflow:auto}
     if (state.pessoa.length) extras.push(state.pessoa.length === 1 ? state.pessoa[0] : state.pessoa.length + ' pessoas');
     const recorte = [escopo].concat(extras, [grupo, periodo]).join(' · ');
     // gerências (ou supervisões, quando uma gerência está filtrada)
-    const porSup = state.ger.length === 1 && !modoPessoa();
+    const porSup = state.ger.length === 1;
     const campoG = porSup ? (e => e.sup || 'Sem supervisão definida') : 'ger';
     const grupos = agrupar(es, campoG).sort((a, b) => b.n - a.n).slice(0, 10).map(g => ({ nome: g.nome, n: g.n, semN: g.semN }))
       .sort((a, b) => b.semN / b.n - a.semN / a.n || b.n - a.n);
@@ -971,7 +978,7 @@ function montarApresentacao(PptxGenJS, D, IMG) {
   s.addText('Itens avaliados: ' + n(k.itens) + ' (os ' + n(k.na) + ' não aplicáveis ficam fora da conta).', { x: 0.9, y: 5.6, w: 3.8, h: 0.8, fontFace: F, fontSize: 11, color: TEXTO, margin: 0, valign: 'top', isTextBox: true });
   const gers = D.grupos.slice(0, 10);
   s.addText(D.grupoTitulo, { x: 5.4, y: 1.9, w: 7.3, h: 0.35, fontFace: F, fontSize: 14, bold: true, color: VERDE, margin: 0, isTextBox: true });
-  if (gers.length) barrasLacuna(s, gers.map(g => Object.assign({ rotulo: g.nome + '  (' + n(g.semN) + ' de ' + n(g.n) + ')' }, g)), 5.3, 2.3, 7.4, 3.85);
+  if (gers.length) barrasLacuna(s, gers.map(g => Object.assign({ rotulo: g.nome + '  (' + n(g.n) + (g.n === 1 ? ' inspeção' : ' inspeções') + ' · ' + n(g.semN) + ' sem NC)' }, g)), 5.3, 2.3, 7.4, 3.85);
   legendaManual(s, 5.45, 6.25);
 
   // 3. Análise das inspeções
