@@ -647,7 +647,7 @@ body.em-tour{overflow:auto}
       pessoasNC: pessoas.filter(x => x.nc > 0).sort((a, b) => b.nc - a.nc),
       notaPessoas: lac.length > 14 ? 'Mostrando as 14 pessoas com maior % de inspeções sem NC, entre ' + lac.length + ' com 4 ou mais inspeções. A lista completa está no painel e no Excel.' : 'Pessoas com 4 ou mais inspeções no recorte.',
       analise: { checkTop: ck ? { nome: ck.nome, nc: ck.nc } : null, sist: pergs.filter(q => q.sist).length, localTop: lc ? { nome: lc.nome, nc: lc.nc, n: lc.n } : null, tend },
-      pergsTop: pergs.slice(0, 7).map(q => ({ p: q.p, nInsp: q.nInsp })),
+      pergsTop: pergs.slice(0, 7).map(q => ({ p: q.p, nInsp: q.nInsp, sist: q.sist })),
     };
   }
   window.inspDadosApresentacao = dadosApresentacao;
@@ -999,7 +999,15 @@ function montarApresentacao(PptxGenJS, D, IMG) {
   const insights = [];
   insights.push([p(k.n ? k.semN / k.n * 100 : 0) + ' das inspeções sem nenhuma NC', n(k.semN) + ' de ' + n(k.n) + ' inspeções. Pode ser área em ordem ou inspeção feita sem atenção: veja os nomes nos slides por cargo e por pessoa.']);
   if (A.checkTop && k.nc) insights.push([pc(A.checkTop.nc, k.nc) + '% das NC estão num só checklist', A.checkTop.nome + ': ' + n(A.checkTop.nc) + ' das ' + n(k.nc) + ' NC registradas no período.']);
-  insights.push(A.sist ? [n(A.sist) + ' pergunta' + (A.sist > 1 ? 's' : '') + ' com NC repetida', 'O mesmo problema apareceu em 2 ou mais inspeções: pede ação de processo, não só correção no local.'] : ['Nenhuma NC repetida', 'Nenhuma pergunta teve NC em mais de uma inspeção no recorte: os casos podem ser tratados como ver e agir.']);
+  // quadro de perguntas: texto inteiro; mostra quantas couberem (até 7)
+  const LIN_CHARS = 68, LIN_H = 0.165, PAD = 0.12, ALT_DISP = 3.55;
+  const linhasDe = t => Math.max(1, Math.ceil((t || '').length / LIN_CHARS));
+  const ptLayout = []; let altUsada = 0;
+  D.pergsTop.slice(0, 7).forEach(q => { const h = linhasDe(q.p) * LIN_H + PAD; if (altUsada + h <= ALT_DISP || !ptLayout.length) { ptLayout.push({ q, h }); altUsada += h; } });
+  const nMostra = ptLayout.length;
+  const nSistMostra = ptLayout.filter(x => x.q.sist).length;
+  const ondeSist = A.sist === 1 ? 'Pede ação de processo, não só correção no local. É a 1ª do quadro ao lado, em vermelho.' : A.sist <= nSistMostra ? 'Pedem ação de processo, não só correção no local. São as ' + A.sist + ' primeiras do quadro ao lado, em vermelho.' : 'Pedem ação de processo. As ' + nSistMostra + ' mais repetidas estão em vermelho ao lado; as demais, na tela Análise do setor.';
+  insights.push(A.sist ? [n(A.sist) + ' pergunta' + (A.sist > 1 ? 's' : '') + ' com NC repetida (em 2+ inspeções)', ondeSist] : ['Nenhuma NC repetida', 'Nenhuma pergunta teve NC em mais de uma inspeção no recorte: os casos podem ser tratados como ver e agir.']);
   if (A.localTop) insights.push(['Local com mais NC', A.localTop.nome + ': ' + n(A.localTop.nc) + ' NC em ' + n(A.localTop.n) + ' inspeções.']);
   if (A.tend) { const dif = A.tend.b - A.tend.a; insights.push(['NC nos itens ' + (dif >= 0 ? 'subiu' : 'caiu') + ' de ' + A.tend.de + ' para ' + A.tend.para, fx(A.tend.a) + '% → ' + fx(A.tend.b) + '% dos itens avaliados (' + (dif >= 0 ? '+' : '−') + fx(Math.abs(dif)) + (Math.abs(dif) < 2 ? ' ponto percentual).' : ' pontos percentuais).')]); }
   insights.forEach((it, i) => {
@@ -1007,14 +1015,33 @@ function montarApresentacao(PptxGenJS, D, IMG) {
     s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.6, y: y + 0.05, w: 0.5, h: 0.5, rectRadius: 0.08, fill: { color: LIMA }, line: { color: LIMA } });
     s.addText(String(i + 1), { x: 0.6, y: y + 0.05, w: 0.5, h: 0.5, fontFace: F, fontSize: 16, bold: true, color: VERDE, align: 'center', valign: 'middle', margin: 0, isTextBox: true });
     s.addText(it[0], { x: 1.3, y, w: 4.9, h: 0.38, fontFace: F, fontSize: 14, bold: true, color: TINTA, valign: 'middle', margin: 0, fit: 'shrink', isTextBox: true });
-    s.addText(it[1], { x: 1.3, y: y + 0.38, w: 4.9, h: 0.5, fontFace: F, fontSize: 11, color: TEXTO, valign: 'top', margin: 0, isTextBox: true });
+    s.addText(it[1], { x: 1.3, y: y + 0.38, w: 4.9, h: 0.55, fontFace: F, fontSize: 11, color: TEXTO, valign: 'top', margin: 0, fit: 'shrink', isTextBox: true });
   });
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 6.55, y: 1.85, w: 6.15, h: 4.8, rectRadius: 0.12, fill: { color: 'FFFFFF' }, line: { color: BORDA, width: 1 } });
-  s.addText('Perguntas que mais aparecem com NC (nº de inspeções)', { x: 6.8, y: 2.0, w: 5.7, h: 0.35, fontFace: F, fontSize: 13, bold: true, color: VERDE, margin: 0, isTextBox: true });
-  const pt = D.pergsTop.slice(0, 7);
+  s.addText('Perguntas que mais aparecem com NC', { x: 6.8, y: 2.0, w: 5.7, h: 0.35, fontFace: F, fontSize: 13, bold: true, color: VERDE, margin: 0, isTextBox: true });
+  const pt = ptLayout.map(x => x.q);
   if (!pt.length) s.addText('Nenhuma NC registrada no recorte.', { x: 6.8, y: 2.6, w: 5.6, h: 0.6, fontFace: F, fontSize: 14, color: TEXTO, margin: 0, isTextBox: true });
-  else s.addChart(pres.charts.BAR, [{ name: 'Inspeções com NC', labels: pt.map(q => corta(q.p, 52)), values: pt.map(q => q.nInsp) }],
-    Object.assign({ x: 6.7, y: 2.4, w: 5.9, h: 4.15, barDir: 'bar', barGapWidthPct: 40, chartColors: ['DF4636'], showValue: true, dataLabelPosition: 'outEnd', dataLabelColor: TINTA, showLegend: false, catAxisOrientation: 'maxMin', catAxisLabelFontSize: 10 }, eixo));
+  else {
+    const VERM = 'DF4636', CINZA = 'B8C2BC';
+    const maxI = Math.max.apply(null, pt.map(q => q.nInsp));
+    const y0 = 2.42;
+    let y = y0;
+    ptLayout.forEach(({ q, h }) => {
+      const cor = q.sist ? VERM : CINZA, hb = h - 0.06;
+      s.addShape(pres.shapes.RECTANGLE, { x: 6.8, y: y + 0.02, w: 0.07, h: hb, fill: { color: cor }, line: { color: cor } });
+      s.addText(q.p, { x: 6.98, y, w: 4.75, h: h - 0.02, fontFace: F, fontSize: 9, color: TINTA, valign: 'middle', margin: 0, isTextBox: true });
+      const wb = Math.max(0.06, 0.45 * q.nInsp / maxI), yb = y + h / 2 - 0.13;
+      s.addShape(pres.shapes.RECTANGLE, { x: 11.85, y: yb, w: wb, h: 0.26, fill: { color: cor }, line: { color: cor } });
+      s.addText(n(q.nInsp), { x: 11.85 + wb + 0.05, y: yb - 0.03, w: 0.4, h: 0.32, fontFace: F, fontSize: 11, bold: true, color: TINTA, valign: 'middle', margin: 0, isTextBox: true });
+      y += h;
+    });
+    const yl = Math.max(y + 0.04, 6.02);
+    [['DF4636', 'Repetida (NC em 2 ou mais inspeções)'], ['B8C2BC', 'NC em 1 inspeção']].forEach((l, i) => {
+      s.addShape(pres.shapes.RECTANGLE, { x: 6.8 + i * 3.1, y: yl + 0.07, w: 0.18, h: 0.18, fill: { color: l[0] }, line: { color: l[0] } });
+      s.addText(l[1], { x: 7.05 + i * 3.1, y: yl, w: 2.9, h: 0.32, fontFace: F, fontSize: 9.5, color: TEXTO, valign: 'middle', margin: 0, isTextBox: true });
+    });
+    s.addText('Número = inspeções em que a pergunta teve NC' + (D.pergsTop.length > nMostra ? ' · as demais perguntas estão na tela Análise do setor' : ''), { x: 6.8, y: yl + 0.3, w: 5.7, h: 0.25, fontFace: F, fontSize: 9, italic: true, color: TEXTO, margin: 0, isTextBox: true });
+  }
 
   // Tabelas por cargo e por pessoa (mesma leitura da tela Qualidade das respostas)
   function tabelaQual(s, linhas, primeira, colW, y, rowH) {
